@@ -21,23 +21,86 @@ router.get('/club-center', async (req, res) => {
   });
 });
 
-// 2. 建立社團的 API
+// 2. 建立社團的 API (修正版)
 router.post('/create-club', async (req, res) => {
-  await prisma.club.create({ data: { name: req.body.name } });
-  res.redirect('/clubs/club-center'); // 注意：路徑可能會變，等下說明
+  try {
+    const newClub = await prisma.club.create({ data: { name: req.body.name } });
+    // 成功回傳 JSON，包含新社團的資料
+    res.json({ success: true, message: "社團建立成功", club: newClub });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "建立失敗" });
+  }
 });
-
-// 3. 加入社團的 API
+// 3. 加入社團的 API (修正版)
 router.post('/join-club', async (req, res) => {
   try {
-    await prisma.clubMember.create({
-      data: { userId: parseInt(req.body.userId), clubId: parseInt(req.body.clubId) }
+    const { userId, clubId } = req.body;
+    
+    // 檢查是否已經加入過 (避免重複)
+    const existing = await prisma.clubMember.findFirst({
+      where: { userId: parseInt(userId), clubId: parseInt(clubId) }
     });
-    res.json({ success: true, message: "加入成功" });
+
+    if (existing) {
+      return res.json({ success: false, message: "您已經是成員了！" });
+    }
+
+    // 建立關聯
+    await prisma.clubMember.create({
+      data: { userId: parseInt(userId), clubId: parseInt(clubId) }
+    });
+
+    res.json({ success: true, message: "加入成功！" });
   } catch (e) {
-    res.status(400).json({ success: false, message: "加入失敗" });
+    res.status(500).json({ success: false, message: "加入失敗" });
+  }
+});
+// 4. 發布活動的 API (修正版)
+router.post('/create-activity', async (req, res) => {
+  try {
+    const { clubId, title, date, content } = req.body;
+    const activity = await prisma.activity.create({
+      data: {
+        title,
+        date,
+        content,
+        clubId: parseInt(clubId)
+      }
+    });
+    res.json({ success: true, message: "活動發布成功", activity });
+  } catch (e) {
+    res.status(500).json({ success: false, message: "發布失敗" });
+  }
+});
+// 5. 申請報帳 API
+router.post('/create-expense', async (req, res) => {
+  try {
+    const { activityId, item, amount } = req.body;
+    const expense = await prisma.expense.create({
+      data: {
+        item,
+        amount: parseInt(amount),
+        activityId: parseInt(activityId)
+      }
+    });
+    res.json({ success: true, message: "報帳申請已送出", expense });
+  } catch (e) {
+    res.status(500).json({ success: false, message: "申請失敗" });
   }
 });
 
+// 6. 審核經費 API (核准/駁回)
+router.post('/approve-expense', async (req, res) => {
+  try {
+    const { expenseId, action } = req.body; // action 會是 "approved" 或 "rejected"
+    const updated = await prisma.expense.update({
+      where: { id: parseInt(expenseId) },
+      data: { status: action }
+    });
+    res.json({ success: true, message: `已更新狀態為: ${action}`, expense: updated });
+  } catch (e) {
+    res.status(500).json({ success: false, message: "審核失敗" });
+  }
+});
 // 把這個管理員匯出，讓 server.js 可以用
 module.exports = router;
