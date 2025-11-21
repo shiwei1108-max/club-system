@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>社團系統 - 完整串接測試</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #f0f2f5; }
+    .container { max-width: 600px; margin: 0 auto; }
+    .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    input { width: 95%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 4px; }
+    button { padding: 10px 20px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; width: 100%; margin-top: 10px;}
+    button:hover { background: #1976D2; }
+    button:disabled { background: #ccc; cursor: not-allowed; }
+    
+    .response-box { 
+      background: #282c34; color: #61dafb; 
+      padding: 15px; border-radius: 5px; 
+      font-family: monospace; white-space: pre-wrap; 
+      display: none; margin-top: 10px; overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div class="card">
+    <h2>1. 登入取得 Token</h2>
+    <input type="text" id="email" value="student@ncue.edu.tw">
+    <input type="password" id="password" value="mypassword">
+    <button onclick="doLogin()">🔑 登入 (Login)</button>
+    <div id="loginResult" class="response-box"></div>
+  </div>
+
+  <div class="card">
+    <h2>2. 存取受保護的資料 (API)</h2>
+    <p>這裡模擬 App 要去抓社團資料。如果沒有 Token，會被伺服器踢出來。</p>
+    <button id="btnGetData" onclick="getClubData()" disabled>🚫 請先登入才能按</button>
+    <div id="dataResult" class="response-box"></div>
+  </div>
+
+</div>
+
+<script>
+  let myToken = ''; // 用來暫存 Token 的變數
+
+  // --- A. 登入函式 ---
+  async function doLogin() {
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const resultBox = document.getElementById('loginResult');
+
+    resultBox.style.display = 'block';
+    resultBox.innerText = '⏳ 連線中...';
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        // 1. 登入成功，把 Token 存起來
+        myToken = data.token; 
+        
+        // 2. 更新畫面
+        resultBox.style.color = '#4caf50'; // 綠色
+        resultBox.innerText = `✅ 登入成功！Token 已保存。\n(前20碼: ${myToken.substring(0,20)}...)`;
+        
+        // 3. 解鎖下面的按鈕
+        const btn = document.getElementById('btnGetData');
+        btn.disabled = false;
+        btn.innerText = '🔓 現在可以抓取社團資料了 (Get Data)';
+        btn.style.background = '#4CAF50';
+      } else {
+        resultBox.style.color = '#ff5252'; // 紅色
+        resultBox.innerText = `❌ 失敗: ${data.message}`;
+      }
+    } catch (err) {
+      resultBox.innerText = '連線錯誤: ' + err;
+    }
+  }
+
+  // --- B. 抓取資料函式 (帶著 Token 去) ---
+  async function getClubData() {
+    const resultBox = document.getElementById('dataResult');
+    resultBox.style.display = 'block';
+    resultBox.innerText = '⏳ 正在拿票根給警衛檢查...';
+
+    try {
+      const res = await fetch('/api/clubs/club-center', {
+        method: 'GET',
+        headers: {
+          // 【關鍵！】這裡就是把 Token 秀給警衛看的地方
+          'Authorization': 'Bearer ' + myToken 
+        }
+      });
+
+      const data = await res.json();
+      
+      // 把回傳的 JSON 美化顯示出來
+      resultBox.style.color = '#61dafb';
+      resultBox.innerText = JSON.stringify(data, null, 2); 
+      
+    } catch (err) {
+      resultBox.innerText = '錯誤: ' + err;
+    }
+  }
+</script>
+</body>
+</html>

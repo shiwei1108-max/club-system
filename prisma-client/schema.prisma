@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../prisma-client"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id       Int          @id @default(autoincrement())
+  email    String       @unique
+  password String
+  name     String?
+  members  ClubMember[]
+}
+
+model Club {
+  id         Int          @id @default(autoincrement())
+  name       String
+  members    ClubMember[]
+  activities Activity[]
+}
+
+model ClubMember {
+  id     Int    @id @default(autoincrement())
+  user   User   @relation(fields: [userId], references: [id])
+  userId Int
+  club   Club   @relation(fields: [clubId], references: [id])
+  clubId Int
+  role   String @default("member")
+}
+
+model Activity {
+  id       Int       @id @default(autoincrement())
+  title    String
+  date     String
+  content  String?
+  club     Club      @relation(fields: [clubId], references: [id])
+  clubId   Int
+  expenses Expense[] // <--- 新增：活動底下的開銷
+}
+
+// --- 新增：經費支出表 ---
+model Expense {
+  id     Int    @id @default(autoincrement())
+  item   String //買了什麼 (如: 飲料)
+  amount Int // 多少錢
+  status String @default("pending") // 狀態：pending(審核中), approved(已核准), rejected(已駁回)
+
+  activity   Activity @relation(fields: [activityId], references: [id])
+  activityId Int // 這是哪一場活動的開銷
+}
