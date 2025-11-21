@@ -1,12 +1,36 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      manifest: {
+        name: '白沙民舞社管理系統',
+        short_name: '民舞社',
+        description: '國立彰化師範大學白沙世界民俗舞蹈社專用系統',
+        theme_color: '#ffffff',
+        icons: [
+          {
+            src: 'pwa-192x192.png',
+            sizes: '192x192',
+            type: 'image/png'
+          },
+          {
+            src: 'pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png'
+          }
+        ]
+      }
+    })
+  ],
   server: {
     proxy: {
-      // 這裡就是橋樑：告訴前端，所有 /api 開頭的請求，都轉發給後端(3001)
       '/api': {
         target: 'http://localhost:3001',
         changeOrigin: true,
