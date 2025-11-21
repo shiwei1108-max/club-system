@@ -9,12 +9,16 @@ app.use(express.urlencoded({ extended: true }));
 // ★ 關鍵：只讀取 React 打包好的 dist 資料夾，不讀 public
 app.use(express.static(path.join(__dirname, 'frontend', 'dist')));
 
+// 引入路由與警衛
 const clubRouter = require('./routes/clubRoutes');
 const authRouter = require('./routes/authRoutes');
+const publicRouter = require('./routes/publicRoutes'); // (新)
 const authenticateToken = require('./middleware/auth');
 
-app.use('/api/auth', authRouter);
-app.use('/api/clubs', authenticateToken, clubRouter);
+// 設定 API 路由
+app.use('/api/public', publicRouter); // (新) 公開區：不用 Token
+app.use('/api/auth', authRouter);     // 登入區：不用 Token
+app.use('/api/clubs', authenticateToken, clubRouter); // 機密區：要 Token
 
 // ★ 關鍵：處理所有網頁請求，回傳 React 的 index.html
 app.get(/.*/, (req, res) => {

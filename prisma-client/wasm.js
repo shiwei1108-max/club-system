@@ -87,6 +87,9 @@ Prisma.NullTypes = {
  * Enums
  */
 exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
+  ReadUncommitted: 'ReadUncommitted',
+  ReadCommitted: 'ReadCommitted',
+  RepeatableRead: 'RepeatableRead',
   Serializable: 'Serializable'
 });
 
@@ -128,6 +131,11 @@ exports.Prisma.ExpenseScalarFieldEnum = {
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
+};
+
+exports.Prisma.QueryMode = {
+  default: 'default',
+  insensitive: 'insensitive'
 };
 
 exports.Prisma.NullsOrder = {
@@ -181,18 +189,17 @@ const config = {
   "datasourceNames": [
     "db"
   ],
-  "activeProvider": "sqlite",
-  "postinstall": false,
+  "activeProvider": "postgresql",
   "inlineDatasources": {
     "db": {
       "url": {
-        "fromEnvVar": null,
-        "value": "file:./dev.db"
+        "fromEnvVar": "DATABASE_URL",
+        "value": null
       }
     }
   },
-  "inlineSchema": "generator client {\n  provider = \"prisma-client-js\"\n  output   = \"../prisma-client\"\n}\n\ndatasource db {\n  provider = \"sqlite\"\n  url      = \"file:./dev.db\"\n}\n\nmodel User {\n  id       Int          @id @default(autoincrement())\n  email    String       @unique\n  password String\n  name     String?\n  members  ClubMember[]\n}\n\nmodel Club {\n  id         Int          @id @default(autoincrement())\n  name       String\n  members    ClubMember[]\n  activities Activity[]\n}\n\nmodel ClubMember {\n  id     Int    @id @default(autoincrement())\n  user   User   @relation(fields: [userId], references: [id])\n  userId Int\n  club   Club   @relation(fields: [clubId], references: [id])\n  clubId Int\n  role   String @default(\"member\")\n}\n\nmodel Activity {\n  id       Int       @id @default(autoincrement())\n  title    String\n  date     String\n  content  String?\n  club     Club      @relation(fields: [clubId], references: [id])\n  clubId   Int\n  expenses Expense[] // <--- 新增：活動底下的開銷\n}\n\n// --- 新增：經費支出表 ---\nmodel Expense {\n  id     Int    @id @default(autoincrement())\n  item   String //買了什麼 (如: 飲料)\n  amount Int // 多少錢\n  status String @default(\"pending\") // 狀態：pending(審核中), approved(已核准), rejected(已駁回)\n\n  activity   Activity @relation(fields: [activityId], references: [id])\n  activityId Int // 這是哪一場活動的開銷\n}\n",
-  "inlineSchemaHash": "d686d280de790ed0f13078dbd32b7755c0fb39c13410c0e2e6323b3eae9008be",
+  "inlineSchema": "generator client {\n  provider = \"prisma-client-js\"\n  output   = \"../prisma-client\"\n}\n\ndatasource db {\n  provider = \"postgresql\" // <--- 改成 postgresql\n  url      = env(\"DATABASE_URL\") // <--- 改成讀取變數\n}\n\nmodel User {\n  id       Int          @id @default(autoincrement())\n  email    String       @unique\n  password String\n  name     String?\n  members  ClubMember[]\n}\n\nmodel Club {\n  id         Int          @id @default(autoincrement())\n  name       String\n  members    ClubMember[]\n  activities Activity[]\n}\n\nmodel ClubMember {\n  id     Int    @id @default(autoincrement())\n  user   User   @relation(fields: [userId], references: [id])\n  userId Int\n  club   Club   @relation(fields: [clubId], references: [id])\n  clubId Int\n  role   String @default(\"member\")\n}\n\nmodel Activity {\n  id       Int       @id @default(autoincrement())\n  title    String\n  date     String\n  content  String?\n  club     Club      @relation(fields: [clubId], references: [id])\n  clubId   Int\n  expenses Expense[] // <--- 新增：活動底下的開銷\n}\n\n// --- 新增：經費支出表 ---\nmodel Expense {\n  id     Int    @id @default(autoincrement())\n  item   String //買了什麼 (如: 飲料)\n  amount Int // 多少錢\n  status String @default(\"pending\") // 狀態：pending(審核中), approved(已核准), rejected(已駁回)\n\n  activity   Activity @relation(fields: [activityId], references: [id])\n  activityId Int // 這是哪一場活動的開銷\n}\n",
+  "inlineSchemaHash": "d6c10bf534825f0d509a70e08414ccc27dc61ab8cacb1828d253287bbef7dfbb",
   "copyEngine": true
 }
 config.dirname = '/'
@@ -210,7 +217,9 @@ config.engineWasm = {
 config.compilerWasm = undefined
 
 config.injectableEdgeEnv = () => ({
-  parsed: {}
+  parsed: {
+    DATABASE_URL: typeof globalThis !== 'undefined' && globalThis['DATABASE_URL'] || typeof process !== 'undefined' && process.env && process.env.DATABASE_URL || undefined
+  }
 })
 
 if (typeof globalThis !== 'undefined' && globalThis['DEBUG'] || typeof process !== 'undefined' && process.env && process.env.DEBUG || undefined) {
