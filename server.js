@@ -1,29 +1,28 @@
 const express = require('express');
+const path = require('path');
 const app = express();
 const port = 3001;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static('public')); 
 
-// 1. 引入路由與警衛
+// ★ 關鍵：只讀取 React 打包好的 dist 資料夾，不讀 public
+app.use(express.static(path.join(__dirname, 'frontend', 'dist')));
+
 const clubRouter = require('./routes/clubRoutes');
 const authRouter = require('./routes/authRoutes');
-const authenticateToken = require('./middleware/auth'); // <--- 新警衛報到
+const authenticateToken = require('./middleware/auth');
 
-// 2. 設定路由
-// (A) 登入/註冊：不需要警衛 (不然沒人能註冊了)
 app.use('/api/auth', authRouter);
+app.use('/api/clubs', authenticateToken, clubRouter);
 
-// (B) 社團資料：【需要警衛保護】
-// 注意：我在 clubRouter 前面加了 authenticateToken
-app.use('/api/clubs', authenticateToken, clubRouter); 
-
-
-app.get('/', (req, res) => {
-  res.json({ status: "OK", message: "API Server Ready (Protected Mode)" });
+// ★ 關鍵：處理所有網頁請求，回傳 React 的 index.html
+app.get(/.*/, (req, res) => {
+  if (!req.path.startsWith('/api')) {
+    res.sendFile(path.join(__dirname, 'frontend', 'dist', 'index.html'));
+  }
 });
 
 app.listen(port, () => {
-  console.log(`🔒 安全伺服器啟動: http://localhost:${port}`);
+  console.log(`🚀 全端整合系統啟動: http://localhost:${port}`);
 });
