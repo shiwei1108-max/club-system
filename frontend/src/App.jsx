@@ -1,41 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
+// --- 主程式 ---
 function App() {
   const [token, setToken] = useState(null)
   const [currentUser, setCurrentUser] = useState(null)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [email, setEmail] = useState('student@ncue.edu.tw')
+  const [password, setPassword] = useState('mypassword')
   const [message, setMessage] = useState('') 
   const [clubData, setClubData] = useState(null)
-  const [newClubName, setNewClubName] = useState('')
-  const [showLogin, setShowLogin] = useState(false)
-  
-  // ★ 新增：用來存「真實」的行事曆資料
-  const [upcomingEvents, setUpcomingEvents] = useState([])
+  const [newGroup, setNewGroup] = useState({ name: '', description: '', location: '' })
 
-  // 1. 初始化：一打開網頁，就去後端抓公開活動
-  useEffect(() => {
-    fetchPublicEvents()
-  }, [])
-
-  async function fetchPublicEvents() {
-    try {
-      const res = await fetch('/api/public/events')
-      const data = await res.json()
-      if (data.success) {
-        setUpcomingEvents(data.events)
-      }
-    } catch (err) { console.error("無法讀取行事曆") }
-  }
-
-  // --- 年度目標 (這部分保持靜態即可) ---
-  const annualGoals = [
-    { level: '近程目標', title: '招募新生 ‧ 建立默契', desc: '主攻九月社團博覽會與迎新茶會，幹部間建立「職責分明、守時、主動、大局觀」的默契。', color: '#4caf50' },
-    { level: '中程目標', title: '凝聚感情 ‧ 扎根基本', desc: '每週兩次社課扎根基本功。舉辦萬聖趴、聖誕趴凝聚感情。邀請學長姐指導與聯歡。', color: '#ff9800' },
-    { level: '遠程目標', title: '第 55 屆成果發表會', desc: '全力籌備成發，支援校內外與全國民俗舞蹈社的大型活動，宣傳白沙世界民俗舞蹈社。', color: '#f44336' }
-  ]
-
-  // --- 動作區 ---
+  // --- API 動作 ---
   async function handleLogin() {
     setMessage('⏳ 驗證中...')
     try {
@@ -45,126 +20,173 @@ function App() {
       else { setMessage(`❌ ${data.message}`) }
     } catch (err) { setMessage('連線錯誤') }
   }
+
   async function handleRegister() {
     try {
       const res = await fetch('/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, name: '新同學' }) })
-      const data = await res.json(); if (data.success) { alert('註冊成功！'); setMessage('✅ 註冊成功，請登入') } else { setMessage(`❌ ${data.message}`) }
+      const data = await res.json(); if(data.success){ alert('註冊成功'); setMessage('✅ 註冊成功，請登入'); } else { setMessage(`❌ ${data.message}`); }
     } catch (err) {}
   }
+
   async function fetchClubData(userToken) {
     try {
       const res = await fetch('/api/clubs/club-center', { method: 'GET', headers: { 'Authorization': `Bearer ${userToken || token}` } })
       setClubData(await res.json())
     } catch (err) {}
   }
-  async function handleCreateClub() {
-    if (!newClubName) return
-    await fetch('/api/clubs/create-club', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ name: newClubName }) })
-    setNewClubName(''); fetchClubData(token);
-  }
-  function handleLogout() { setToken(null); setCurrentUser(null); setClubData(null); setShowLogin(false); }
 
-  // --- 畫面區 ---
+  async function handleCreateGroup() {
+    if (!newGroup.name) return alert('請輸入舞碼名稱')
+    await fetch('/api/clubs/create-club', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(newGroup)
+    })
+    setNewGroup({ name: '', description: '', location: '' }); 
+    fetchClubData(token);
+  }
+
+  function handleLogout() { setToken(null); setCurrentUser(null); setClubData(null); }
+
+  // --- (A) 未登入介面 (這裡簡化顯示，實際會是漂亮的官網) ---
   if (!token) {
     return (
-      <div style={{ fontFamily: '"Microsoft JhengHei", sans-serif', color: '#333', background: '#fff' }}>
-        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 40px', background: 'white', boxShadow: '0 2px 5px rgba(0,0,0,0.1)', position: 'sticky', top: 0, zIndex: 100 }}>
-          <div style={{ fontSize: '22px', fontWeight: 'bold', color: '#6f42c1' }}>💃 白沙世界民俗舞蹈社</div>
-          <button onClick={() => setShowLogin(true)} style={{ padding: '8px 20px', background: '#6f42c1', color: 'white', border: 'none', borderRadius: '20px', cursor: 'pointer', fontWeight: 'bold' }}>社員登入 / 註冊</button>
-        </nav>
-        <header style={{ background: 'linear-gradient(135deg, #5b247a 0%, #1bcedf 100%)', color: 'white', padding: '60px 20px', textAlign: 'center' }}>
-          <h1 style={{ fontSize: '42px', marginBottom: '10px', letterSpacing: '2px' }}>歷史在走，我們仍留</h1>
-          <p style={{ fontSize: '18px', opacity: 0.9, marginBottom: '30px' }}>傳承自民國 60 年的熱情，邀你一起在舞台發光</p>
-        </header>
-        <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '40px 20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px' }}>
-          <div>
-            <h2 style={{ color: '#333', borderLeft: '5px solid #6f42c1', paddingLeft: '10px', marginBottom: '20px' }}>🎯 114 學年度 目標展望</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              {annualGoals.map((goal, index) => (
-                <div key={index} style={{ background: '#f9f9f9', padding: '20px', borderRadius: '10px', borderLeft: `5px solid ${goal.color}`, boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                  <h3 style={{ margin: '0 0 5px 0', color: goal.color }}>{goal.level}：{goal.title}</h3>
-                  <p style={{ margin: 0, color: '#555', lineHeight: '1.6', fontSize: '15px' }}>{goal.desc}</p>
-                </div>
-              ))}
-            </div>
+      <div style={{ display:'flex', justifyContent:'center', alignItems:'center', height:'100vh', background:'#f0f2f5', flexDirection:'column' }}>
+        <h1 style={{color:'#6f42c1', marginBottom:'20px'}}>💃 白沙民舞社系統</h1>
+        <div style={{background:'white', padding:'30px', borderRadius:'10px', boxShadow:'0 4px 10px rgba(0,0,0,0.1)', width:'300px'}}>
+          <h3 style={{textAlign:'center', marginTop:0}}>會員登入</h3>
+          <input type="text" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} style={{width:'100%', padding:'10px', marginBottom:'10px', boxSizing:'border-box'}}/>
+          <input type="password" placeholder="密碼" value={password} onChange={e=>setPassword(e.target.value)} style={{width:'100%', padding:'10px', marginBottom:'10px', boxSizing:'border-box'}}/>
+          <div style={{display:'flex', gap:'10px'}}>
+            <button onClick={handleLogin} style={{flex:1, padding:'10px', background:'#6f42c1', color:'white', border:'none', borderRadius:'5px', cursor:'pointer'}}>登入</button>
+            <button onClick={handleRegister} style={{flex:1, padding:'10px', background:'#eee', color:'#333', border:'none', borderRadius:'5px', cursor:'pointer'}}>註冊</button>
           </div>
-          <div>
-            <h2 style={{ color: '#333', borderLeft: '5px solid #1bcedf', paddingLeft: '10px', marginBottom: '20px' }}>📅 近期活動行事曆 (即時更新)</h2>
-            <div style={{ background: 'white', border: '1px solid #eee', borderRadius: '10px', boxShadow: '0 4px 10px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
-              {upcomingEvents.length === 0 ? (
-                <p style={{ padding: '20px', textAlign: 'center', color: '#999' }}>目前沒有活動 (請登入後台新增)</p>
-              ) : (
-                upcomingEvents.map((evt, index) => (
-                  <div key={index} style={{ display: 'flex', padding: '15px', borderBottom: '1px solid #f0f0f0', alignItems: 'center' }}>
-                    <div style={{ background: '#e3f2fd', color: '#1976d2', padding: '10px', borderRadius: '8px', textAlign: 'center', minWidth: '60px', marginRight: '15px' }}>
-                      <div style={{ fontSize: '12px', fontWeight: 'bold' }}>{evt.date.split('-')[1]}月</div>
-                      <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{evt.date.split('-')[2]}</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#333' }}>{evt.title}</div>
-                      <div style={{ fontSize: '13px', color: '#888', marginTop: '4px' }}>{evt.date}</div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
+          <p style={{color:'red', textAlign:'center', fontSize:'14px'}}>{message}</p>
         </div>
-        <footer style={{ background: '#333', color: 'white', padding: '20px', textAlign: 'center', fontSize: '14px' }}><p>白沙世界民俗舞蹈社 © 2025</p></footer>
-        {showLogin && (
-          <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 200 }}>
-            <div style={{ background: 'white', padding: '30px', borderRadius: '12px', width: '90%', maxWidth: '380px', position: 'relative', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
-              <button onClick={() => setShowLogin(false)} style={{ position: 'absolute', top: '10px', right: '10px', border: 'none', background: 'none', fontSize: '20px', cursor: 'pointer', color:'#999' }}>✕</button>
-              <h2 style={{ textAlign: 'center', marginBottom: '20px', color:'#333' }}>會員登入</h2>
-              <input type="text" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" style={{ width: '100%', padding: '12px', marginBottom: '15px', border:'1px solid #ddd', borderRadius:'6px', boxSizing:'border-box' }} />
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="密碼" style={{ width: '100%', padding: '12px', marginBottom: '20px', border:'1px solid #ddd', borderRadius:'6px', boxSizing:'border-box' }} />
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button onClick={handleLogin} style={{ flex: 1, padding: '12px', background: '#6f42c1', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight:'bold' }}>登入</button>
-                <button onClick={handleRegister} style={{ flex: 1, padding: '12px', background: '#eee', color: '#333', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight:'bold' }}>註冊</button>
-              </div>
-              <p style={{ color: message.includes('成功') ? 'green' : 'red', marginTop: '15px', textAlign: 'center', fontSize:'14px' }}>{message}</p>
-            </div>
-          </div>
-        )}
       </div>
     )
   }
 
-  // (B) 已登入 (保持不變)
+  // --- (B) 登入後：舞團排練中心 ---
   return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif', background: '#f4f7f6', minHeight: '100vh' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h1 style={{color: '#6f42c1'}}>💃 社團戰情中心</h1>
-        <div><span style={{ marginRight: '10px' }}>Hi, {currentUser?.name}</span><button onClick={handleLogout} style={{ padding: '8px 16px', background: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', cursor:'pointer' }}>登出</button></div>
-      </div>
-      <div style={{ background: 'white', padding: '20px', borderRadius: '8px', marginBottom: '20px', display: 'flex', gap: '10px', alignItems: 'center' }}>
-        <h3>➕ 建立新社團：</h3>
-        <input type="text" value={newClubName} onChange={(e) => setNewClubName(e.target.value)} placeholder="例如：登山社" style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} />
-        <button onClick={handleCreateClub} style={{ padding: '8px 16px', background: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor:'pointer' }}>建立</button>
-      </div>
-      {!clubData ? <p>⏳ 載入中...</p> : (
-        <div style={{ display: 'grid', gap: '20px' }}>
-          {clubData.clubs.map(club => (
-            <ClubCard key={club.id} club={club} token={token} currentUser={currentUser} onRefresh={() => fetchClubData(token)} />
-          ))}
+    <div style={{ fontFamily: '"Microsoft JhengHei", sans-serif', background: '#f8f9fa', minHeight: '100vh' }}>
+      <header style={{ background: 'white', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', padding: '15px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position:'sticky', top:0, zIndex:10 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:'15px'}}>
+          <div style={{ width:'40px', height:'40px', background:'#6f42c1', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontWeight:'bold', fontSize:'20px' }}>舞</div>
+          <div>
+            <h1 style={{ margin: 0, fontSize: '20px', color: '#333' }}>舞團排練與行政中心</h1>
+            <span style={{ fontSize: '12px', color: '#888' }}>NCUE Folk Dance Management</span>
+          </div>
         </div>
-      )}
+        <div style={{ display:'flex', alignItems:'center', gap:'20px' }}>
+          <span style={{ color: '#555', fontWeight:'500' }}>👤 {currentUser?.name}</span>
+          <button onClick={handleLogout} style={{ padding: '8px 20px', background: '#ffebee', color: '#c62828', border: 'none', borderRadius: '20px', cursor:'pointer', fontWeight:'bold' }}>登出</button>
+        </div>
+      </header>
+
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '40px 20px' }}>
+        {/* 建立群組區塊 */}
+        <div style={{ background: 'linear-gradient(135deg, #6f42c1 0%, #8e44ad 100%)', padding: '30px', borderRadius: '15px', color: 'white', marginBottom: '40px', boxShadow: '0 10px 20px rgba(111, 66, 193, 0.2)' }}>
+          <h2 style={{ margin: '0 0 20px 0', display:'flex', alignItems:'center', gap:'10px' }}>➕ 建立新的表演舞碼群組</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr auto', gap: '15px' }}>
+            <input type="text" placeholder="舞碼名稱 (如: 扇舞組)" value={newGroup.name} onChange={e => setNewGroup({...newGroup, name: e.target.value})} style={{ padding: '12px', borderRadius: '8px', border: 'none' }} />
+            <input type="text" placeholder="介紹 (如: 全國賽比賽舞碼)" value={newGroup.description} onChange={e => setNewGroup({...newGroup, description: e.target.value})} style={{ padding: '12px', borderRadius: '8px', border: 'none' }} />
+            <input type="text" placeholder="排練地點 (如: 體育館)" value={newGroup.location} onChange={e => setNewGroup({...newGroup, location: e.target.value})} style={{ padding: '12px', borderRadius: '8px', border: 'none' }} />
+            <button onClick={handleCreateGroup} style={{ padding: '12px 30px', background: '#00e676', color: '#004d40', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', boxShadow:'0 4px 0 #00a854' }}>建立</button>
+          </div>
+        </div>
+
+        {/* 群組列表 */}
+        {!clubData ? <p style={{textAlign:'center', color:'#888'}}>⏳ 讀取資料中...</p> : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '30px' }}>
+            {clubData.clubs.map(group => (
+              <GroupCard key={group.id} group={group} token={token} currentUser={currentUser} onRefresh={() => fetchClubData(token)} />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
 
-function ClubCard({ club, token, currentUser, onRefresh }) {
+// --- 子元件：GroupCard ---
+function GroupCard({ group, token, currentUser, onRefresh }) {
   const [actDate, setActDate] = useState('')
   const [actTitle, setActTitle] = useState('')
+  const [actType, setActType] = useState('rehearsal')
   const [expenseInputs, setExpenseInputs] = useState({})
-  const myRole = club.members.find(m => m.userId === currentUser.id)?.role
+  
+  const myRole = group.members.find(m => m.userId === currentUser.id)?.role
   const isAdmin = myRole === 'admin'
-  async function handleJoin() { const res = await fetch('/api/clubs/join-club', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ userId: currentUser.id, clubId: club.id }) }); const data = await res.json(); if (data.success) { alert('🎉 加入成功'); onRefresh(); } else { alert(data.message); } }
-  async function handleAddActivity() { if (!actDate || !actTitle) return alert('請輸入日期和標題'); const res = await fetch('/api/clubs/create-activity', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ clubId: club.id, title: actTitle, date: actDate, content: '' }) }); if ((await res.json()).success) { setActTitle(''); setActDate(''); onRefresh(); } }
-  async function handleAddExpense(activityId) { const input = expenseInputs[activityId]; if (!input || !input.item || !input.amount) return alert('請輸入項目和金額'); const res = await fetch('/api/clubs/create-expense', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ activityId, item: input.item, amount: input.amount }) }); if ((await res.json()).success) { setExpenseInputs({ ...expenseInputs, [activityId]: { item: '', amount: '' } }); onRefresh() } }
-  async function handleApprove(expenseId, action) { const res = await fetch('/api/clubs/approve-expense', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ expenseId, action }) }); if ((await res.json()).success) onRefresh() }
-  const handleExpChange = (actId, field, val) => { setExpenseInputs(prev => ({ ...prev, [actId]: { ...prev[actId], [field]: val } })) }
-  return ( <div style={{ background: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', position: 'relative', borderLeft: isAdmin ? '5px solid #ffc107' : '5px solid #007bff' }}> <div style={{position:'absolute', top:'10px', right:'10px', fontSize:'12px', color:'#888'}}> 身分: {isAdmin ? <b style={{color:'#d63384'}}>👑 幹部</b> : '👤 社員'} {!myRole && <button onClick={handleJoin} style={{marginLeft:'5px', background:'#6f42c1', color:'white', border:'none', borderRadius:'10px', cursor:'pointer'}}>➕ 加入</button>} </div> <h2 style={{ color: '#333', marginTop: 0 }}>{club.name}</h2> <p style={{fontSize:'14px', color:'#666'}}>成員: {club.members.length} 人</p> <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px', marginTop: '10px' }}> <b>📅 活動與經費：</b> {club.activities.length === 0 && <p style={{color:'#999', fontSize:'12px'}}>(暫無活動)</p>} {club.activities.map(act => ( <div key={act.id} style={{ marginBottom: '15px', borderBottom: '1px dashed #ccc', paddingBottom: '10px' }}> <div style={{fontWeight:'bold', color:'#0056b3'}}>{act.date} - {act.title}</div> <div style={{ marginLeft: '15px', fontSize: '14px' }}> {act.expenses.map(exp => ( <div key={exp.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin:'5px 0' }}> <span>💵 {exp.item} (${exp.amount}) <span style={{ marginLeft: '5px', fontSize:'12px', fontWeight:'bold', color: exp.status === 'approved' ? 'green' : exp.status === 'rejected' ? 'red' : 'orange' }}>{exp.status === 'pending' ? '(審核中)' : exp.status === 'approved' ? '(已核准)' : '(已駁回)'}</span></span> {isAdmin && exp.status === 'pending' && (<div><button onClick={() => handleApprove(exp.id, 'approved')} style={{marginRight:'5px', cursor:'pointer'}}>✅</button><button onClick={() => handleApprove(exp.id, 'rejected')} style={{cursor:'pointer'}}>❌</button></div>)} </div> ))} <div style={{ marginTop: '5px', display: 'flex', gap: '5px' }}> <input type="text" placeholder="項目" style={{width:'80px', padding:'2px'}} value={expenseInputs[act.id]?.item || ''} onChange={e => handleExpChange(act.id, 'item', e.target.value)} /> <input type="number" placeholder="$" style={{width:'50px', padding:'2px'}} value={expenseInputs[act.id]?.amount || ''} onChange={e => handleExpChange(act.id, 'amount', e.target.value)} /> <button onClick={() => handleAddExpense(act.id)} style={{fontSize:'12px', cursor:'pointer', background:'#ffc107', border:'none', borderRadius:'3px'}}>申請</button> </div> </div> </div> ))} <div style={{ marginTop: '15px', paddingTop: '10px', borderTop: '2px solid #eee', display: 'flex', gap: '5px' }}><input type="date" value={actDate} onChange={e => setActDate(e.target.value)} style={{ border: '1px solid #ddd', borderRadius: '4px' }} /><input type="text" value={actTitle} onChange={e => setActTitle(e.target.value)} placeholder="新活動標題" style={{ flex: 1, border: '1px solid #ddd', borderRadius: '4px', padding:'5px' }} /><button onClick={handleAddActivity} style={{ background: '#28a745', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}>發布</button></div> </div> </div> )
+
+  async function handleJoin() {
+    const res = await fetch('/api/clubs/join-club', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ userId: currentUser.id, clubId: group.id }) })
+    if ((await res.json()).success) { alert('加入成功'); onRefresh(); }
+  }
+  
+  async function handleAddActivity() {
+    if (!actDate || !actTitle) return alert('請填寫完整')
+    const res = await fetch('/api/clubs/create-activity', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ clubId: group.id, title: actTitle, date: actDate, type: actType })
+    })
+    if ((await res.json()).success) { setActTitle(''); setActDate(''); onRefresh(); }
+  }
+
+  async function handleAddExpense(aid) {
+    const input = expenseInputs[aid]; if(!input?.item) return;
+    await fetch('/api/clubs/create-expense', { method:'POST', headers:{'Content-Type':'application/json', 'Authorization':`Bearer ${token}`}, body: JSON.stringify({ activityId: aid, item: input.item, amount: input.amount }) });
+    setExpenseInputs({...expenseInputs, [aid]:{item:'',amount:''}}); onRefresh();
+  }
+  async function handleApprove(eid, action) {
+    await fetch('/api/clubs/approve-expense', { method:'POST', headers:{'Content-Type':'application/json', 'Authorization':`Bearer ${token}`}, body: JSON.stringify({ expenseId: eid, action }) });
+    onRefresh();
+  }
+  const handleExpChange = (aid, f, v) => setExpenseInputs(p => ({...p, [aid]: {...p[aid], [f]:v}}))
+
+  return (
+    <div style={{ background: 'white', borderRadius: '12px', boxShadow: '0 5px 15px rgba(0,0,0,0.08)', overflow: 'hidden', borderTop: `5px solid ${isAdmin ? '#ff9800' : '#6f42c1'}` }}>
+      <div style={{ padding: '20px', borderBottom: '1px solid #eee', position: 'relative' }}>
+        <div style={{ position: 'absolute', top: '20px', right: '20px' }}>
+          {!myRole ? <button onClick={handleJoin} style={{ padding: '6px 12px', background: '#6f42c1', color: 'white', border: 'none', borderRadius: '6px', cursor:'pointer' }}>+ 加入</button> : 
+           <span style={{ padding: '4px 10px', background: isAdmin ? '#fff3e0' : '#f3e5f5', color: isAdmin ? '#e65100' : '#7b1fa2', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>{isAdmin ? '👑 負責人' : '💃 舞者'}</span>}
+        </div>
+        <h2 style={{ margin: '0 0 5px 0', color: '#333', fontSize: '22px' }}>{group.name}</h2>
+        <p style={{ margin: 0, color: '#666', fontSize: '14px' }}>📍 {group.location || '地點未定'} | 👥 {group.members.length} 人</p>
+        {group.description && <p style={{ margin: '10px 0 0 0', fontSize: '13px', color: '#888', fontStyle: 'italic' }}>"{group.description}"</p>}
+      </div>
+      <div style={{ padding: '20px', background: '#fafafa', minHeight: '200px' }}>
+        <h4 style={{ margin: '0 0 15px 0', color: '#555', textTransform: 'uppercase', fontSize: '12px', letterSpacing: '1px' }}>Schedule & Budget</h4>
+        {group.activities.length === 0 ? <p style={{textAlign:'center', color:'#ccc', fontSize:'14px'}}>暫無日程</p> : group.activities.map(act => (
+          <div key={act.id} style={{ background: 'white', padding: '15px', borderRadius: '8px', marginBottom: '15px', boxShadow: '0 2px 5px rgba(0,0,0,0.03)', borderLeft: act.type === 'show' ? '4px solid #e91e63' : '4px solid #2196f3' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <div><span style={{ fontSize: '12px', color: act.type === 'show' ? '#e91e63' : '#2196f3', fontWeight: 'bold', marginRight: '8px' }}>{act.type === 'show' ? '🎪 演出' : '🩰 排練'}</span><span style={{ fontWeight: 'bold', color: '#333' }}>{act.title}</span></div>
+              <span style={{ fontSize: '13px', color: '#999' }}>{act.date}</span>
+            </div>
+            <div style={{ fontSize: '13px', paddingLeft: '10px', borderLeft: '2px solid #eee' }}>
+              {act.expenses.map(exp => (
+                <div key={exp.id} style={{ display: 'flex', justifyContent: 'space-between', margin: '5px 0', color: '#555' }}>
+                  <span>{exp.item} (${exp.amount})</span>
+                  <span style={{ fontWeight: 'bold', color: exp.status==='approved'?'green':exp.status==='rejected'?'red':'orange' }}>{exp.status === 'pending' && isAdmin ? (<><button onClick={()=>handleApprove(exp.id, 'approved')} style={{border:'none', background:'none', cursor:'pointer'}}>✅</button><button onClick={()=>handleApprove(exp.id, 'rejected')} style={{border:'none', background:'none', cursor:'pointer'}}>❌</button></>) : (exp.status==='pending'?'審核中':exp.status==='approved'?'已核准':'已駁回')}</span>
+                </div>
+              ))}
+              <div style={{ display: 'flex', gap: '5px', marginTop: '8px' }}><input placeholder="項目" value={expenseInputs[act.id]?.item||''} onChange={e=>handleExpChange(act.id,'item',e.target.value)} style={{width:'60px', padding:'3px', border:'1px solid #ddd', borderRadius:'4px'}}/><input placeholder="$" value={expenseInputs[act.id]?.amount||''} onChange={e=>handleExpChange(act.id,'amount',e.target.value)} style={{width:'40px', padding:'3px', border:'1px solid #ddd', borderRadius:'4px'}}/><button onClick={()=>handleAddExpense(act.id)} style={{background:'#ff9800', color:'white', border:'none', borderRadius:'4px', cursor:'pointer', fontSize:'12px'}}>申請</button></div>
+            </div>
+          </div>
+        ))}
+        <div style={{ marginTop: '20px', paddingTop: '15px', borderTop: '1px dashed #ddd' }}>
+          <div style={{ display: 'flex', gap: '5px', marginBottom: '5px' }}>
+            <select value={actType} onChange={e=>setActType(e.target.value)} style={{padding:'5px', border:'1px solid #ddd', borderRadius:'4px', background:'white'}}><option value="rehearsal">排練</option><option value="show">演出</option></select>
+            <input type="date" value={actDate} onChange={e=>setActDate(e.target.value)} style={{padding:'5px', border:'1px solid #ddd', borderRadius:'4px'}} />
+          </div>
+          <div style={{ display: 'flex', gap: '5px' }}>
+            <input type="text" placeholder="日程標題" value={actTitle} onChange={e=>setActTitle(e.target.value)} style={{flex:1, padding:'5px', border:'1px solid #ddd', borderRadius:'4px'}} /><button onClick={handleAddActivity} style={{background:'#2196f3', color:'white', border:'none', borderRadius:'4px', padding:'5px 10px', cursor:'pointer'}}>新增</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default App

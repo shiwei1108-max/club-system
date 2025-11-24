@@ -1,54 +1,65 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../prisma-client"
 }
 
 datasource db {
-  provider = "postgresql"      // <--- 改成 postgresql
-  url      = env("DATABASE_URL") // <--- 改成讀取變數
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
+// 1. 使用者
 model User {
   id       Int          @id @default(autoincrement())
   email    String       @unique
   password String
   name     String?
-  members  ClubMember[]
+  members  ClubMember[] // 連結到成員表
 }
 
+// 2. 舞碼群組 (原社團)
 model Club {
   id          Int          @id @default(autoincrement())
   name        String
-  members     ClubMember[]
-  activities  Activity[]
+  description String?      // [新增] 介紹
+  location    String?      // [新增] 排練地點
+  members     ClubMember[] // 連結到成員表
+  activities  Activity[]   // 連結到日程表
 }
 
+// 3. ★ 成員名單 (剛剛缺少的關鍵部分) ★
 model ClubMember {
   id      Int    @id @default(autoincrement())
+  
   user    User   @relation(fields: [userId], references: [id])
   userId  Int
+  
   club    Club   @relation(fields: [clubId], references: [id])
   clubId  Int
-  role    String @default("member")
+  
+  role    String @default("member") // admin 或 member
 }
 
+// 4. 排練/演出日程 (原活動)
 model Activity {
   id        Int       @id @default(autoincrement())
   title     String
   date      String
   content   String?
+  type      String?   // [新增] 類型: rehearsal, show
+  
   club      Club      @relation(fields: [clubId], references: [id])
   clubId    Int
-  expenses  Expense[] // <--- 新增：活動底下的開銷
+  
+  expenses  Expense[] // 連結到經費表
 }
 
-// --- 新增：經費支出表 ---
+// 5. 經費/預算
 model Expense {
   id         Int      @id @default(autoincrement())
-  item       String   //買了什麼 (如: 飲料)
-  amount     Int      // 多少錢
-  status     String   @default("pending") // 狀態：pending(審核中), approved(已核准), rejected(已駁回)
+  item       String
+  amount     Int
+  status     String   @default("pending")
   
   activity   Activity @relation(fields: [activityId], references: [id])
-  activityId Int      // 這是哪一場活動的開銷
+  activityId Int
 }
